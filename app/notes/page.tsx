@@ -3,105 +3,168 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
-import { NoteList } from "@/components/NoteList"
-import { NoteEditor } from "@/components/NoteEditor"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Plus, Trash2, LogOut } from "lucide-react"
 
-export interface Note {
+interface Note {
   id: string
-  title: string | null
-  content: string | null
+  title: string
+  content: string
   created_at: string
 }
 
 export default function NotesPage() {
   const router = useRouter()
+
   const [notes, setNotes] = useState<Note[]>([])
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
 
+  // -------------------------
+  // Auth + Initial Fetch
+  // -------------------------
   useEffect(() => {
-    async function init() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+    const init = async () => {
+      const { data: sessionData } = await supabase.auth.getSession()
 
-      if (!session) {
+      if (!sessionData.session) {
         router.push("/login")
         return
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notes")
         .select("*")
         .order("created_at", { ascending: false })
 
-      setNotes(data || [])
-      setSelectedNote(data?.[0] || null)
+      if (!error && data) {
+        setNotes(data)
+        setSelectedNote(data[0] ?? null)
+      }
+
+      setLoading(false)
     }
 
     init()
   }, [router])
 
-  async function createNote() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session) return
-
-    const { data } = await supabase
+  // -------------------------
+  // CRUD
+  // -------------------------
+  const createNote = async () => {
+    const { data, error } = await supabase
       .from("notes")
-      .insert({
-        title: "Untitled",
-        content: "",
-        user_id: session.user.id,
-      })
+      .insert({ title: "Untitled Note", content: "" })
       .select()
       .single()
 
-    if (!data) return
-
-    setNotes([data, ...notes])
-    setSelectedNote(data)
+    if (!error && data) {
+      setNotes([data, ...notes])
+      setSelectedNote(data)
+    }
   }
 
-  async function updateNote(id: string, updates: Partial<Note>) {
-    await supabase.from("notes").update(updates).eq("id", id)
-
+  const updateNote = async (id: string, updates: Partial<Note>) => {
     setNotes((prev) =>
       prev.map((n) => (n.id === id ? { ...n, ...updates } : n))
     )
 
-    if (selectedNote?.id === id) {
-      setSelectedNote({ ...selectedNote, ...updates })
-    }
+    await supabase.from("notes").update(updates).eq("id", id)
   }
 
-  async function deleteNote(id: string) {
+  const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id)
-    const filtered = notes.filter((n) => n.id !== id)
-    setNotes(filtered)
-    setSelectedNote(filtered[0] || null)
+
+    const remaining = notes.filter((n) => n.id !== id)
+    setNotes(remaining)
+    setSelectedNote(remaining[0] ?? null)
   }
 
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
+
+  if (loading) {
+    return <div className="p-6">Loading…</div>
+  }
+
+  // -------------------------
+  // UI
+  // -------------------------
   return (
     <div className="flex h-screen">
-      <NoteList
-        notes={notes}
-        selectedNoteId={selectedNote?.id || null}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSelect={setSelectedNote}
-        onCreate={createNote}
-      />
+      {/* Sidebar */}
+      <aside className="w-64 border-r flex flex-col">
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="font-semibold">Notes</h2>
+          <Button size="icon" variant="ghost" onClick={signOut}>
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
 
-      <div className="flex-1 flex flex-col">
-        <NoteEditor
-          note={selectedNote}
-          onUpdate={updateNote}
-          onDelete={deleteNote}
-        />
-      </div>
+        <div className="p-2">
+          <Button className="w-full" onClick={createNote}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Note
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1 px-2">
+          {notes.map((note) => (
+            <button
+              key={note.id}
+              onClick={() => setSelectedNote(note)}
+              className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                selectedNote?.id === note.id
+                  ? "bg-muted"
+                  : "hover:bg-muted/50"
+              }`}
+            >
+              {note.title || "Untitled"}
+            </button>
+          ))}
+        </ScrollArea>
+      </aside>
+
+      {/* Editor */}
+      <main className="flex-1 flex flex-col">
+        {selectedNote ? (
+          <>
+            <div className="border-b px-6 py-4 flex justify-between items-center">
+              <Input
+                value={selectedNote.title}
+                onChange={(e) =>
+                  updateNote(selectedNote.id, { title: e.target.value })
+                }
+                className="text-xl font-semibold border-none px-0"
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => deleteNote(selectedNote.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <textarea
+              value={selectedNote.content}
+              onChange={(e) =>
+                updateNote(selectedNote.id, { content: e.target.value })
+              }
+              className="flex-1 p-6 resize-none outline-none"
+              placeholder="Start writing…"
+            />
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            Select or create a note
+          </div>
+        )}
+      </main>
     </div>
   )
 }
