@@ -4,7 +4,13 @@ import { FileText, Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Note } from "@/app/notes/page"
+
+interface Note {
+  id: string
+  title: string
+  content: string
+  created_at: string
+}
 
 interface NoteListProps {
   notes: Note[]
@@ -25,8 +31,8 @@ export function NoteList({
 }: NoteListProps) {
   const filteredNotes = notes.filter(
     (note) =>
-      note.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.content?.toLowerCase().includes(searchQuery.toLowerCase())
+      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      note.content.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (

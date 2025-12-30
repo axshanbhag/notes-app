@@ -3,7 +3,13 @@
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Note } from "@/app/notes/page"
+
+interface Note {
+  id: string
+  title: string
+  content: string
+  created_at: string
+}
 
 interface NoteEditorProps {
   note: Note | null
@@ -24,7 +30,7 @@ export function NoteEditor({ note, onUpdate, onDelete }: NoteEditorProps) {
     <>
       <div className="border-b px-6 py-4 flex justify-between items-center">
         <Input
-          value={note.title || ""}
+          value={note.title}
           onChange={(e) => onUpdate(note.id, { title: e.target.value })}
           className="text-2xl font-semibold border-0 px-0 h-auto"
           placeholder="Note title..."
@@ -36,7 +42,7 @@ export function NoteEditor({ note, onUpdate, onDelete }: NoteEditorProps) {
 
       <div className="flex-1 p-6">
         <textarea
-          value={note.content || ""}
+          value={note.content}
           onChange={(e) => onUpdate(note.id, { content: e.target.value })}
           className="w-full h-full resize-none bg-transparent focus:outline-none"
           placeholder="Start writing..."
