@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
-interface Note {
+export interface Note {
   id: string
   title: string
   content: string
@@ -35,7 +35,12 @@ export function NoteEditor({ note, onUpdate, onDelete }: NoteEditorProps) {
           className="text-2xl font-semibold border-0 px-0 h-auto"
           placeholder="Note title..."
         />
-        <Button variant="ghost" size="icon" onClick={() => onDelete(note.id)}>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(note.id)}
+        >
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>

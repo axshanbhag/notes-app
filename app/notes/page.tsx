@@ -54,25 +54,49 @@ export default function NotesPage() {
   // CRUD
   // -------------------------
   const createNote = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
     const { data, error } = await supabase
       .from("notes")
-      .insert({ title: "Untitled Note", content: "" })
+      .insert({
+        title: "Untitled Note",
+        content: "",
+        user_id: user.id, // 🔑 THIS IS THE FIX
+      })
       .select()
       .single()
 
-    if (!error && data) {
-      setNotes([data, ...notes])
-      setSelectedNote(data)
+    if (error) {
+      console.error("Create note failed:", error)
+      return
     }
+
+    setNotes((prev) => [data, ...prev])
+    setSelectedNote(data)
   }
+
 
   const updateNote = async (id: string, updates: Partial<Note>) => {
+    // 1️⃣ Update local notes list
     setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, ...updates } : n))
+      prev.map((note) =>
+        note.id === id ? { ...note, ...updates } : note
+      )
     )
 
+    // 2️⃣ Update selected note (THIS is what unbreaks typing)
+    setSelectedNote((prev) =>
+      prev && prev.id === id ? { ...prev, ...updates } : prev
+    )
+
+    // 3️⃣ Persist to database
     await supabase.from("notes").update(updates).eq("id", id)
   }
+
 
   const deleteNote = async (id: string) => {
     await supabase.from("notes").delete().eq("id", id)
